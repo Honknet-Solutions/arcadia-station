@@ -1,0 +1,22 @@
+{
+	"dm_type": "/datum/ai_controller/sapient_npc",
+	"type": "selector",
+	"children": [
+		{
+			"type": "decorator",
+			"decorator": "/datum/bt_node/decorator/bb_key_set",
+			"vars": {
+				"key": "BB_npc_action_intent"
+			},
+			"child": {
+				"type": "leaf",
+				"behavior": "/datum/bt_node/ai_behavior/execute_npc_intent"
+			}
+		},
+		{
+			"type": "leaf",
+			"behavior": "/datum/bt_node/ai_behavior/request_npc_cognition"
+		}
+	]
+}
+

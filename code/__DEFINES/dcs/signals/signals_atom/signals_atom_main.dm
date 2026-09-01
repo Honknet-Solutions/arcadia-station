@@ -27,6 +27,9 @@
 	#define ALLOW_GENERIC_REAGENT_EXAMINE (1<<1)
 ///from base of atom/examine_more(): (/mob, examine_list)
 #define COMSIG_ATOM_EXAMINE_MORE "atom_examine_more"
+/// Sent by sapient NPC capability discovery: (/datum/npc_cognition_request/request, /datum/npc_perception_snapshot/snapshot)
+/// Components may add semantic, server-validated offers for interactions that cannot be inferred from ordinary clicks.
+#define COMSIG_ATOM_NPC_REQUEST_CAPABILITIES "atom_npc_request_capabilities"
 /// from atom/examine_more(): (/atom/examining, examine_list)
 #define COMSIG_MOB_EXAMINING_MORE "mob_examining_more"
 ///from base of [/atom/proc/update_appearance]: (updates)

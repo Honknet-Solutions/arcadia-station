@@ -435,6 +435,68 @@
 
 /datum/config_entry/flag/disallow_circuit_sounds
 
+/// Enables outbound cognition requests. Disabled by default so a missing gateway never blocks gameplay.
+/datum/config_entry/flag/npc_ai_enabled
+
+/// Full private URL of the provider-agnostic NPC AI gateway decision endpoint.
+/datum/config_entry/string/npc_ai_gateway_url
+	protection = CONFIG_ENTRY_LOCKED
+
+/// Optional bearer token used only between DreamDaemon and the private gateway.
+/datum/config_entry/string/npc_ai_gateway_token
+	protection = CONFIG_ENTRY_LOCKED|CONFIG_ENTRY_HIDDEN
+
+/// Maximum rust-g HTTP requests allowed in flight at once.
+/datum/config_entry/number/npc_ai_max_concurrent_requests
+	default = 4
+	min_val = 1
+	max_val = 32
+
+/// Maximum number of cognition requests waiting for dispatch.
+/datum/config_entry/number/npc_ai_max_queue_size
+	default = 128
+	min_val = 1
+	max_val = 2048
+
+/// Maximum number of gateway requests started in one rolling minute window.
+/datum/config_entry/number/npc_ai_max_requests_per_minute
+	default = 120
+	min_val = 1
+
+/// rust-g HTTP timeout in seconds. Timed-out jobs remain tracked until rust-g completes them safely.
+/datum/config_entry/number/npc_ai_http_timeout_seconds
+	default = 15
+	min_val = 1
+	max_val = 120
+
+/// Maximum seconds a request may wait in the scheduler before deterministic fallback is selected.
+/datum/config_entry/number/npc_ai_queue_timeout_seconds
+	default = 10
+	min_val = 1
+	max_val = 120
+
+/// Minimum seconds between background cognition requests from one actor.
+/datum/config_entry/number/npc_ai_request_cooldown_seconds
+	default = 5
+	min_val = 0.5
+	max_val = 300
+	integer = FALSE
+
+/// Allows lightweight resident cognition to use the gateway when global NPC AI is enabled.
+/datum/config_entry/flag/npc_ai_l1_enabled
+	default = TRUE
+
+/// Allows normal resident cognition to use the gateway when global NPC AI is enabled.
+/datum/config_entry/flag/npc_ai_l2_enabled
+	default = TRUE
+
+/// Allows high-detail resident cognition to use the gateway when global NPC AI is enabled.
+/datum/config_entry/flag/npc_ai_l3_enabled
+	default = TRUE
+
+/// Emits metadata-only lifecycle traces. Prompts, tokens and player speech are never included.
+/datum/config_entry/flag/npc_ai_trace_logging
+
 /datum/config_entry/string/tts_http_url
 	protection = CONFIG_ENTRY_LOCKED
 

@@ -249,7 +249,7 @@
 			LAZYSET(as_mob.do_afters, interaction_key, reduced_interaction_count - 1)
 		else
 			LAZYREMOVE(as_mob.do_afters, interaction_key)
-	SEND_SIGNAL(user, COMSIG_DO_AFTER_ENDED)
+	SEND_SIGNAL(user, COMSIG_DO_AFTER_ENDED, .)
 
 #undef ACTION_WORKING
 #undef ACTION_FAILED

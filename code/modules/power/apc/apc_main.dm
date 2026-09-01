@@ -14,6 +14,12 @@
 ///Charge percentage at which the APC icon indicates discharging
 #define APC_CHANNEL_ALARM_TRESHOLD 75
 
+#define NPC_APC_CONTROL_BREAKER "breaker"
+#define NPC_APC_CONTROL_CHARGE "charge"
+#define NPC_APC_CONTROL_EQUIPMENT "equipment"
+#define NPC_APC_CONTROL_LIGHTING "lighting"
+#define NPC_APC_CONTROL_ENVIRONMENT "environment"
+
 /obj/machinery/power/apc
 	name = "area power controller"
 	desc = "A control terminal for the area's electrical systems."
@@ -228,6 +234,7 @@
 	register_context()
 	addtimer(CALLBACK(src, PROC_REF(update)), 0.5 SECONDS)
 	RegisterSignal(SSdcs, COMSIG_GLOB_GREY_TIDE, PROC_REF(grey_tide))
+	RegisterSignal(src, COMSIG_ATOM_NPC_REQUEST_CAPABILITIES, PROC_REF(add_npc_capabilities))
 	update_appearance()
 
 	var/static/list/hovering_mob_typechecks = list(
@@ -243,6 +250,7 @@
 	AddElement(/datum/element/contextual_screentip_mob_typechecks, hovering_mob_typechecks)
 
 /obj/machinery/power/apc/Destroy()
+	UnregisterSignal(src, COMSIG_ATOM_NPC_REQUEST_CAPABILITIES)
 	if(malfai)
 		malfai.hacked_apcs -= src
 		malfai = null
@@ -255,6 +263,116 @@
 	if(terminal)
 		disconnect_terminal()
 	return ..()
+
+/** Offers semantic APC controls without exposing ui_act names or parameters to cognition providers. */
+/obj/machinery/power/apc/proc/add_npc_capabilities(
+	datum/source,
+	datum/npc_cognition_request/request,
+	datum/npc_perception_snapshot/snapshot,
+)
+	SIGNAL_HANDLER
+	var/mob/living/body = request.pawn_ref?.resolve()
+	if(QDELETED(body) || !body.Adjacent(src) || locked || !can_use(body))
+		return
+	request.add_capability_offer(
+		/datum/npc_capability/apc_control,
+		src,
+		operating ? "switch off [src] main breaker" : "switch on [src] main breaker",
+		action_data = list("operation" = NPC_APC_CONTROL_BREAKER),
+	)
+	request.add_capability_offer(
+		/datum/npc_capability/apc_control,
+		src,
+		chargemode ? "disable [src] battery charging" : "enable [src] battery charging",
+		action_data = list("operation" = NPC_APC_CONTROL_CHARGE),
+	)
+	add_npc_channel_capabilities(request, NPC_APC_CONTROL_EQUIPMENT, "equipment", equipment)
+	add_npc_channel_capabilities(request, NPC_APC_CONTROL_LIGHTING, "lighting", lighting)
+	add_npc_channel_capabilities(request, NPC_APC_CONTROL_ENVIRONMENT, "environment", environ)
+
+/** Offers only channel states that differ from the current APC state. */
+/obj/machinery/power/apc/proc/add_npc_channel_capabilities(
+	datum/npc_cognition_request/request,
+	operation,
+	channel_name,
+	current_state,
+)
+	var/static/list/channel_states = list(
+		"automatic" = APC_CHANNEL_AUTO_ON,
+		"forced on" = APC_CHANNEL_ON,
+		"forced off" = APC_CHANNEL_AUTO_OFF,
+	)
+	for(var/state_name in channel_states)
+		var/new_state = channel_states[state_name]
+		if(new_state == current_state)
+			continue
+		request.add_capability_offer(
+			/datum/npc_capability/apc_control,
+			src,
+			"set [src] [channel_name] power to [state_name]",
+			action_data = list(
+				"operation" = operation,
+				"value" = new_state,
+			),
+		)
+
+/** Revalidates and applies the same authoritative state changes used by the APC interface. */
+/obj/machinery/power/apc/proc/execute_npc_control(mob/living/user, operation, value)
+	if(QDELETED(user) || !user.Adjacent(src) || locked || !can_use(user))
+		return FALSE
+	switch(operation)
+		if(NPC_APC_CONTROL_BREAKER)
+			toggle_breaker(user)
+		if(NPC_APC_CONTROL_CHARGE)
+			chargemode = !chargemode
+			if(!chargemode)
+				charging = APC_NOT_CHARGING
+			update_appearance()
+		if(NPC_APC_CONTROL_EQUIPMENT)
+			if(value < APC_CHANNEL_AUTO_OFF || value > APC_CHANNEL_AUTO_ON)
+				return FALSE
+			equipment = setsubsystem(value)
+			update_appearance()
+			update()
+		if(NPC_APC_CONTROL_LIGHTING)
+			if(value < APC_CHANNEL_AUTO_OFF || value > APC_CHANNEL_AUTO_ON)
+				return FALSE
+			lighting = setsubsystem(value)
+			update_appearance()
+			update()
+		if(NPC_APC_CONTROL_ENVIRONMENT)
+			if(value < APC_CHANNEL_AUTO_OFF || value > APC_CHANNEL_AUTO_ON)
+				return FALSE
+			environ = setsubsystem(value)
+			update_appearance()
+			update()
+		else
+			return FALSE
+	return TRUE
+
+/datum/npc_capability/apc_control
+	capability_kind = NPC_CAPABILITY_MACHINE_CONTROL
+
+/datum/npc_capability/apc_control/begin(
+	datum/ai_controller/sapient_npc/controller,
+	datum/npc_action_intent/intent,
+)
+	var/obj/machinery/power/apc/target = intent.target_ref?.resolve()
+	if(QDELETED(target) || !target.execute_npc_control(
+		controller.pawn,
+		intent.action_data["operation"],
+		intent.action_data["value"],
+	))
+		return FALSE
+	intent.result_summary = intent.action_description
+	return TRUE
+
+/datum/npc_capability/apc_control/perform(
+	seconds_per_tick,
+	datum/ai_controller/sapient_npc/controller,
+	datum/npc_action_intent/intent,
+)
+	return AI_BEHAVIOR_INSTANT|AI_BEHAVIOR_SUCCEEDED
 
 /obj/machinery/power/apc/setDir(newdir)
 	. = ..()
@@ -825,3 +943,8 @@
 #undef APC_CHANNEL_LIGHT_TRESHOLD
 #undef APC_CHANNEL_EQUIP_TRESHOLD
 #undef APC_CHANNEL_ALARM_TRESHOLD
+#undef NPC_APC_CONTROL_BREAKER
+#undef NPC_APC_CONTROL_CHARGE
+#undef NPC_APC_CONTROL_EQUIPMENT
+#undef NPC_APC_CONTROL_LIGHTING
+#undef NPC_APC_CONTROL_ENVIRONMENT
